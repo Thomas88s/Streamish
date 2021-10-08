@@ -17,12 +17,8 @@ const Video = ({ video }) => {
           <strong>{video.title}</strong>
         </p>
         <p>{video.description}</p>
-
-            foreach( comment on comments) {
-                <p>{video.comment}</p>
-    
-            }
-
+ 
+        <p>{video.comments}</p>
         
       </CardBody>
     </Card>
