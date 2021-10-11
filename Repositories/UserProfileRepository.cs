@@ -82,6 +82,86 @@ namespace Streamish.Repositories
             }
 
         }
+
+        public UserProfile GetByIdWithVideos(int id)
+        {
+            using (var conn = Connection)
+            {
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+                          SELECT up.Id, up.[Name], up.Email, up.ImageUrl, up.DateCreated,
+                                 v.Id [VideoId], v.Title, v.Description, v.Url, v.DateCreated [VideoDateCreated],
+                                 c.Id [CommentId], c.Message, c.UserProfileId [CommentUserProfileId], cup.[Name] [Commenter Name]
+                          FROM UserProfile up
+                          LEFT JOIN Video v
+                          ON up.Id = v.UserProfileId
+                          LEFT JOIN Comment c
+                          ON v.Id = c.VideoId
+                          LEFT JOIN UserProfile cup
+                          ON c.UserProfileId = cup.Id
+                          WHERE up.Id = @id";
+
+                    DbUtils.AddParameter(cmd, "@id", id);
+
+                    using var reader = cmd.ExecuteReader();
+
+                    UserProfile userProfile = null;
+                    while (reader.Read())
+                    {
+                        //creating the UserProfile object if there isn't already one and if on the first row
+                        if (userProfile == null)
+                        {
+                            userProfile = new UserProfile()
+                            {
+                                Id = DbUtils.GetInt(reader, "Id"),
+                                Name = DbUtils.GetString(reader, "Name"),
+                                Email = DbUtils.GetString(reader, "Email"),
+                                ImageUrl = DbUtils.GetString(reader, "ImageUrl"),
+                                DateCreated = DbUtils.GetDateTime(reader, "DateCreated"),
+                                Videos = new List<Video>()
+                            };
+                        }
+                        // Checking if there is a Video in row:
+                        if (DbUtils.IsNotDbNull(reader, "VideoId"))
+                        {
+                            //Linq search to check if the current row reader is on is already in the videos list to avoid duplicate videos:
+                            var video = userProfile.Videos.FirstOrDefault(video => video.Id == DbUtils.GetInt(reader, "VideoId"));
+                            //If video is not on the list, create new video object and add to list:
+                            if (video == null)
+                            {
+                                video = new Video
+                                {
+                                    Id = DbUtils.GetInt(reader, "VideoId"),
+                                    Title = DbUtils.GetString(reader, "Title"),
+                                    Description = DbUtils.GetString(reader, "Description"),
+                                    Url = DbUtils.GetString(reader, "Url"),
+                                    DateCreated = DbUtils.GetDateTime(reader, "VideoDateCreated"),
+                                    Comments = new List<Comment>()
+                                };
+
+                                userProfile.Videos.Add(video);
+                            }
+                            //Checking if there is a comment in row, create new comment object and add to list:
+                            if (DbUtils.IsNotDbNull(reader, "CommentId"))
+                            {
+                                video.Comments.Add(new Comment
+                                {
+                                    Id = DbUtils.GetInt(reader, "CommentId"),
+                                    Message = DbUtils.GetString(reader, "Message"),
+                                    UserProfile = new UserProfile()
+                                    {                           
+                                        Name = DbUtils.GetString(reader, "Commenter Name"),                                      
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    return userProfile;
+                }
+            }
+        }
         public void Add(UserProfile userProfile)
         {
             using (var conn = Connection)
