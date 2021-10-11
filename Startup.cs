@@ -28,7 +28,7 @@ namespace Streamish
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddTransient<IVideoRepository, VideoRepository>();
-            services.AddTransient<IUserProfileRepository, UserProfileRepository>();            
+            services.AddTransient<IUserProfileRepository, UserProfileRepository>();
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
